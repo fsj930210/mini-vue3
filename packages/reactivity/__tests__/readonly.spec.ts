@@ -1,4 +1,4 @@
-import { isReadonly, readonly } from '../src/reactive';
+import { isProxy, isReadonly, readonly } from '../src/reactive';
 import { vi } from 'vitest';
 
 describe('readonly', () => {
@@ -11,6 +11,8 @@ describe('readonly', () => {
     expect(isReadonly(original)).toBe(false);
     expect(isReadonly(wrapped.bar)).toBe(true);
     expect(isReadonly(original.bar)).toBe(false);
+    expect(isProxy(wrapped.bar)).toBe(true);
+    expect(isProxy(original.bar)).toBe(false);
   });
   it('warn when call set', () => {
     console.warn = vi.fn();
