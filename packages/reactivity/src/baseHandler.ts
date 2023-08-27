@@ -1,12 +1,12 @@
-import { isObject } from "@mini-vue3/shared";
+import { extend, isObject } from "@mini-vue3/shared";
 import { track, trigger } from "./effect";
 import { ReactiveFlags, reactive, readonly } from "./reactive";
 
 const get = createGetter();
 const set = createSetter();
 const readonlyGet = createGetter(true);
-
-function createGetter(isReadonly = false) {
+const shallowReadonlyGet = createGetter(true, true);
+function createGetter(isReadonly = false, shallow = false) {
   return function get (target, key) {
     if (key === ReactiveFlags.IS_REACTIVE) {
       return !isReadonly;
@@ -14,6 +14,9 @@ function createGetter(isReadonly = false) {
       return isReadonly;
     }
     const res = Reflect.get(target, key);
+    if (shallow) {
+      return res;
+    }
     if (isObject(res)) {
       return isReadonly ? readonly(res) : reactive(res);
     }
@@ -47,3 +50,7 @@ export const mutableHandlers = {
   get,
   set,
 };
+
+export const shallowReadonlyHandlers = extend({}, readonlyHandlers, {
+  get: shallowReadonlyGet,
+})
