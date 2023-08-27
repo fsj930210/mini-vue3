@@ -15,7 +15,13 @@ importers:
         specifier: ^0.34.3
         version: registry.npmjs.org/vitest@0.34.3
 
-  packages/reactivity: {}
+  packages/reactivity:
+    dependencies:
+      '@mini-vue3/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/shared: {}
 
 packages:
 

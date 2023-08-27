@@ -4,5 +4,9 @@
   "description": "@mini-vue3/reactivity",
   "keywords": [],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@mini-vue3/shared": "workspace:*"
+  }
 }
