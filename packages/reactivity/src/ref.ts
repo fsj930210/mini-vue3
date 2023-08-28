@@ -6,6 +6,7 @@ class RefImpl {
 	public dep;
 	private _rawValue;
 	private _value;
+	public __v_isRef = true;
 	constructor(_value) {
 		this._rawValue = _value;
 		// 看看value 是不是一个对象，如果是一个对象的话
@@ -38,7 +39,15 @@ function trackRefValue(ref) {
 function triggerRefValue(ref) {
 	triggerEffects(ref.dep);
 }
+
 export function ref(value) {
 	const refImpl = new RefImpl(value);
 	return refImpl;
+}
+
+export function isRef(ref) {
+	return !!ref.__v_isRef;
+}
+export function unRef(ref) {
+	return isRef(ref) ? ref.value : ref;
 }
