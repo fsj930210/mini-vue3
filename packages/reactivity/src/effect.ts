@@ -1,9 +1,10 @@
 import { extend } from '@mini-vue3/shared';
+import { createDep } from './dep';
 
 const targetMap = new WeakMap();
 let activeEffect;
 let shouldTrack;
-class ReactiveEffect {
+export class ReactiveEffect {
 	active = true;
 	deps = [];
 	public onStop?: () => void;
@@ -80,7 +81,7 @@ export function track(target, key) {
 	}
 	let dep = depsMap.get(key);
 	if (!dep) {
-		dep = new Set();
+		dep = createDep();
 		depsMap.set(key, dep);
 	}
 	trackEffects(dep);

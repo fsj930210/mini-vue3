@@ -1,6 +1,7 @@
 import { hasChanged, isObject } from '@mini-vue3/shared';
 import { isTracking, trackEffects, triggerEffects } from './effect';
 import { reactive } from './reactive';
+import { createDep } from './dep';
 
 class RefImpl {
 	public dep;
@@ -12,7 +13,7 @@ class RefImpl {
 		// 看看value 是不是一个对象，如果是一个对象的话
 		// 那么需要用 reactive 包裹一下
 		this._value = convert(_value);
-		this.dep = new Set();
+		this.dep = createDep();
 	}
 	get value() {
 		trackRefValue(this);
@@ -31,12 +32,12 @@ function convert(value) {
 	return isObject(value) ? reactive(value) : value;
 }
 
-function trackRefValue(ref) {
+export function trackRefValue(ref) {
 	if (isTracking()) {
 		trackEffects(ref.dep);
 	}
 }
-function triggerRefValue(ref) {
+export function triggerRefValue(ref) {
 	triggerEffects(ref.dep);
 }
 
