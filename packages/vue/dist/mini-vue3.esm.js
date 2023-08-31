@@ -1,3 +1,11 @@
+const extend = Object.assign;
+function isObject(value) {
+    return value !== null && typeof value === 'object';
+}
+function hasChanged(value, oldValue) {
+    return !Object.is(value, oldValue);
+}
+
 function createComponentInstance(vnode) {
     const component = {
         vnode,
@@ -30,22 +38,50 @@ function finishComponentSetup(instance) {
 }
 
 function render(vnode, container) {
-    patch(vnode);
+    patch(vnode, container);
 }
 function patch(vnode, container) {
-    processComponent(vnode);
+    if (isObject(vnode.type)) {
+        processComponent(vnode, container);
+    }
+    else if (typeof vnode.type === 'string') {
+        processElement(vnode, container);
+    }
 }
 function processComponent(vnode, container) {
-    mountComponent(vnode);
+    mountComponent(vnode, container);
 }
 function mountComponent(vnode, container) {
     const instance = createComponentInstance(vnode);
     setupComponent(instance);
-    setupRenderEffect(instance);
+    setupRenderEffect(instance, container);
 }
 function setupRenderEffect(instance, container) {
     const subTree = instance.render();
-    patch(subTree);
+    patch(subTree, container);
+}
+function processElement(vnode, container) {
+    mountElement(vnode, container);
+}
+function mountElement(vnode, container) {
+    const el = document.createElement(vnode.type);
+    const { props, children } = vnode;
+    for (const prop in props) {
+        const val = props[prop];
+        el.setAttribute(prop, val);
+    }
+    if (typeof children === 'string') {
+        el.textContent = children;
+    }
+    else if (Array.isArray(children)) {
+        mountChildren(vnode, el);
+    }
+    container.appendChild(el);
+}
+function mountChildren(vnode, container) {
+    vnode.children.forEach((v) => {
+        patch(v, container);
+    });
 }
 
 function createVNode(type, props, children) {
@@ -61,7 +97,7 @@ function createApp(rootComponent) {
     return {
         mount(rootContainer) {
             const vnode = createVNode(rootComponent);
-            render(vnode);
+            render(vnode, rootContainer);
         },
     };
 }
@@ -69,14 +105,6 @@ function createApp(rootComponent) {
 function h(type, props, children) {
     const vnode = createVNode(type, props, children);
     return vnode;
-}
-
-const extend = Object.assign;
-function isObject(value) {
-    return value !== null && typeof value === 'object';
-}
-function hasChanged(value, oldValue) {
-    return !Object.is(value, oldValue);
 }
 
 function createDep(effects) {
