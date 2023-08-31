@@ -19,9 +19,13 @@ const HelloWorld = {
 
 export default {
 	name: 'App',
-	setup() {},
+	setup() {
+		return {
+			msg: 'hello mini-vue3',
+		};
+	},
 
 	render() {
-		return h('div', { tId: 1 }, [h('p', {}, '主页'), h(HelloWorld)]);
+		return h('div', { tId: 1 }, [h('h1', {}, this.msg), h('p', {}, '主页'), h(HelloWorld)]);
 	},
 };
