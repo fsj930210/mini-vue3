@@ -1,9 +1,13 @@
 {
-  "name": "@mini-vue3/runtime-core",
+  "name": "vue",
   "version": "0.0.1",
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@mini-vue3/runtime-core": "workspace: *",
+    "@mini-vue3/reactivity": "workspace: *"
   },
   "keywords": [],
   "author": "fengshaojian123 <fsj930210@163.com>",
