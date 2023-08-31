@@ -8,6 +8,22 @@ function hasChanged(value, oldValue) {
     return !Object.is(value, oldValue);
 }
 
+const publicPropertiesMap = {
+    $el: (instance) => instance.vnode.el,
+};
+const publicInstanceProxyHandlers = {
+    get({ _: instance }, key) {
+        const { setupState } = instance;
+        if (key in setupState) {
+            return setupState[key];
+        }
+        const publicGetter = publicPropertiesMap[key];
+        if (publicGetter) {
+            return publicGetter(instance);
+        }
+    },
+};
+
 function createComponentInstance(vnode) {
     const component = {
         vnode,
@@ -21,14 +37,7 @@ function setupComponent(instance) {
 }
 function setupStatefulComponent(instance) {
     const Component = instance.type;
-    instance.proxy = new Proxy({}, {
-        get(target, key) {
-            const { setupState } = instance;
-            if (key in setupState) {
-                return setupState[key];
-            }
-        },
-    });
+    instance.proxy = new Proxy({ _: instance }, publicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
         const setupResult = setup();
@@ -62,21 +71,22 @@ function patch(vnode, container) {
 function processComponent(vnode, container) {
     mountComponent(vnode, container);
 }
-function mountComponent(vnode, container) {
-    const instance = createComponentInstance(vnode);
+function mountComponent(initialVnode, container) {
+    const instance = createComponentInstance(initialVnode);
     setupComponent(instance);
-    setupRenderEffect(instance, container);
+    setupRenderEffect(instance, initialVnode, container);
 }
-function setupRenderEffect(instance, container) {
+function setupRenderEffect(instance, initialVnode, container) {
     const { proxy } = instance;
     const subTree = instance.render.call(proxy);
     patch(subTree, container);
+    initialVnode.el = subTree.el;
 }
 function processElement(vnode, container) {
     mountElement(vnode, container);
 }
 function mountElement(vnode, container) {
-    const el = document.createElement(vnode.type);
+    const el = (vnode.el = document.createElement(vnode.type));
     const { props, children } = vnode;
     for (const prop in props) {
         const val = props[prop];
@@ -101,6 +111,7 @@ function createVNode(type, props, children) {
         type,
         props,
         children,
+        el: null,
     };
     return vnode;
 }

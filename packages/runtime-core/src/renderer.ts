@@ -21,29 +21,34 @@ function processComponent(vnode, container) {
 	// 挂载组件
 	mountComponent(vnode, container);
 }
-function mountComponent(vnode, container) {
+function mountComponent(initialVnode, container) {
 	// 创建组件实例
-	const instance = createComponentInstance(vnode);
+	const instance = createComponentInstance(initialVnode);
 	// 继续处理组件实例
 	setupComponent(instance);
 	// 调用render
-	setupRenderEffect(instance, container);
+	setupRenderEffect(instance, initialVnode, container);
 }
-function setupRenderEffect(instance, container) {
+function setupRenderEffect(instance, initialVnode, container) {
 	// 获取到render函数返回值
 	const { proxy } = instance;
-	// 调用render函数绑定this到代理对象上
+	// 调用render函数绑定this到代理对象上， suntree就是一个vnode
+	// vue2是直接绑定到vue实例上，这里是直接绑定到一个proxy
 	const subTree = instance.render.call(proxy);
 	// vnode -> patch
 	// vnode -> element -> mountElement
 	patch(subTree, container);
+	// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
+	initialVnode.el = subTree.el;
 }
 function processElement(vnode, container) {
 	// mount
 	mountElement(vnode, container);
 }
 function mountElement(vnode, container) {
-	const el = document.createElement(vnode.type);
+	// 将el存入vnode中，为后面this.$el好拿到el，但是这里的el是不完整的
+	// 因为这里只是在mount element时才会调用，而在mount component时el没有
+	const el = (vnode.el = document.createElement(vnode.type));
 	const { props, children } = vnode;
 	for (const prop in props) {
 		const val = props[prop];

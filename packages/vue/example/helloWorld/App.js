@@ -1,7 +1,7 @@
 import { h, ref } from '../../dist/mini-vue3.esm.js';
 
 const count = ref(0);
-
+window.$self = null;
 const HelloWorld = {
 	name: 'HelloWorld',
 	setup() {},
@@ -26,6 +26,7 @@ export default {
 	},
 
 	render() {
+		window.$self = this;
 		return h('div', { tId: 1 }, [h('h1', {}, this.msg), h('p', {}, '主页'), h(HelloWorld)]);
 	},
 };
