@@ -1,11 +1,3 @@
-const extend = Object.assign;
-function isObject(value) {
-    return value !== null && typeof value === 'object';
-}
-function hasChanged(value, oldValue) {
-    return !Object.is(value, oldValue);
-}
-
 const publicPropertiesMap = {
     $el: (instance) => instance.vnode.el,
 };
@@ -59,10 +51,11 @@ function render(vnode, container) {
     patch(vnode, container);
 }
 function patch(vnode, container) {
-    if (isObject(vnode.type)) {
+    const { shapeFlag } = vnode;
+    if (shapeFlag & 2) {
         processComponent(vnode, container);
     }
-    else if (typeof vnode.type === 'string') {
+    else if (shapeFlag & 1) {
         processElement(vnode, container);
     }
 }
@@ -85,15 +78,15 @@ function processElement(vnode, container) {
 }
 function mountElement(vnode, container) {
     const el = (vnode.el = document.createElement(vnode.type));
-    const { props, children } = vnode;
+    const { props, children, shapeFlag } = vnode;
     for (const prop in props) {
         const val = props[prop];
         el.setAttribute(prop, val);
     }
-    if (typeof children === 'string') {
+    if (shapeFlag & 4) {
         el.textContent = children;
     }
-    else if (Array.isArray(children)) {
+    else if (shapeFlag & 8) {
         mountChildren(vnode, el);
     }
     container.appendChild(el);
@@ -109,9 +102,19 @@ function createVNode(type, props, children) {
         type,
         props,
         children,
+        shapeFlag: getShapeFlag(type),
         el: null,
     };
+    if (typeof children === 'string') {
+        vnode.shapeFlag |= 4;
+    }
+    else if (Array.isArray(children)) {
+        vnode.shapeFlag |= 8;
+    }
     return vnode;
+}
+function getShapeFlag(type) {
+    return typeof type === 'string' ? 1 : 2;
 }
 
 function createApp(rootComponent) {
@@ -126,6 +129,22 @@ function createApp(rootComponent) {
 function h(type, props, children) {
     const vnode = createVNode(type, props, children);
     return vnode;
+}
+
+var shapeFlags;
+(function (shapeFlags) {
+    shapeFlags[shapeFlags["ELEMENT"] = 1] = "ELEMENT";
+    shapeFlags[shapeFlags["STATEFUL_COMPONENT"] = 2] = "STATEFUL_COMPONENT";
+    shapeFlags[shapeFlags["TEXT_CHILDREN"] = 4] = "TEXT_CHILDREN";
+    shapeFlags[shapeFlags["ARRAY_CHILREN"] = 8] = "ARRAY_CHILREN";
+})(shapeFlags || (shapeFlags = {}));
+
+const extend = Object.assign;
+function isObject(value) {
+    return value !== null && typeof value === 'object';
+}
+function hasChanged(value, oldValue) {
+    return !Object.is(value, oldValue);
 }
 
 function createDep(effects) {

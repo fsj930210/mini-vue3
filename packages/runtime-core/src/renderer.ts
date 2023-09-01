@@ -1,4 +1,4 @@
-import { isObject } from '@mini-vue3/shared';
+import { isObject, shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
 
 export function render(vnode, container) {
@@ -8,10 +8,12 @@ export function render(vnode, container) {
 
 function patch(vnode, container) {
 	// 判断是element类型还是component vnode.type object就是组件 string就是element
-	if (isObject(vnode.type)) {
+	// 通过shapeFlag位运算判断是否是组件还是elment
+	const { shapeFlag } = vnode;
+	if (shapeFlag & shapeFlags.STATEFUL_COMPONENT) {
 		// 处理组件
 		processComponent(vnode, container);
-	} else if (typeof vnode.type === 'string') {
+	} else if (shapeFlag & shapeFlags.ELEMENT) {
 		// 处理element
 		processElement(vnode, container);
 	}
@@ -49,14 +51,16 @@ function mountElement(vnode, container) {
 	// 将el存入vnode中，为后面this.$el好拿到el，但是这里的el是不完整的
 	// 因为这里只是在mount element时才会调用，而在mount component时el没有
 	const el = (vnode.el = document.createElement(vnode.type));
-	const { props, children } = vnode;
+	const { props, children, shapeFlag } = vnode;
 	for (const prop in props) {
 		const val = props[prop];
 		el.setAttribute(prop, val);
 	}
-	if (typeof children === 'string') {
+	if (shapeFlag & shapeFlags.TEXT_CHILDREN) {
+		// text_children
 		el.textContent = children;
-	} else if (Array.isArray(children)) {
+	} else if (shapeFlag & shapeFlags.ARRAY_CHILREN) {
+		// array_children
 		mountChildren(vnode, el);
 	}
 	container.appendChild(el);
