@@ -27,6 +27,18 @@ export default {
 
 	render() {
 		window.$self = this;
-		return h('div', { tId: 1 }, [h('h1', {}, this.msg), h('p', {}, '主页'), h(HelloWorld)]);
+		return h('div', { tId: 1 }, [
+			h(
+				'h1',
+				{
+					onClick: () => {
+						console.log('onClick');
+					},
+				},
+				this.msg
+			),
+			h('p', {}, '主页'),
+			h(HelloWorld),
+		]);
 	},
 };

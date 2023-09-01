@@ -79,9 +79,16 @@ function processElement(vnode, container) {
 function mountElement(vnode, container) {
     const el = (vnode.el = document.createElement(vnode.type));
     const { props, children, shapeFlag } = vnode;
+    const isOn = (key) => /^on[A-Z]/.test(key);
     for (const prop in props) {
         const val = props[prop];
-        el.setAttribute(prop, val);
+        if (isOn(prop)) {
+            const eventName = prop.slice(2).toLocaleLowerCase();
+            el.addEventListener(eventName, val);
+        }
+        else {
+            el.setAttribute(prop, val);
+        }
     }
     if (shapeFlag & 4) {
         el.textContent = children;

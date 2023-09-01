@@ -52,9 +52,15 @@ function mountElement(vnode, container) {
 	// 因为这里只是在mount element时才会调用，而在mount component时el没有
 	const el = (vnode.el = document.createElement(vnode.type));
 	const { props, children, shapeFlag } = vnode;
+	const isOn = (key) => /^on[A-Z]/.test(key);
 	for (const prop in props) {
 		const val = props[prop];
-		el.setAttribute(prop, val);
+		if (isOn(prop)) {
+			const eventName = prop.slice(2).toLocaleLowerCase();
+			el.addEventListener(eventName, val);
+		} else {
+			el.setAttribute(prop, val);
+		}
 	}
 	if (shapeFlag & shapeFlags.TEXT_CHILDREN) {
 		// text_children
