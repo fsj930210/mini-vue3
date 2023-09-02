@@ -6,6 +6,7 @@ var shapeFlags;
     shapeFlags[shapeFlags["STATEFUL_COMPONENT"] = 2] = "STATEFUL_COMPONENT";
     shapeFlags[shapeFlags["TEXT_CHILDREN"] = 4] = "TEXT_CHILDREN";
     shapeFlags[shapeFlags["ARRAY_CHILREN"] = 8] = "ARRAY_CHILREN";
+    shapeFlags[shapeFlags["SLOT_CHILDREN"] = 16] = "SLOT_CHILDREN";
 })(shapeFlags || (shapeFlags = {}));
 
 const extend = Object.assign;
@@ -157,7 +158,10 @@ function emit(instance, eventName, ...restArgs) {
 }
 
 function initSlots(instance, chilrdren) {
-    normalizeObjectSlots(chilrdren, instance.slots);
+    const { vnode } = instance;
+    if (16 & vnode.shapeFlag) {
+        normalizeObjectSlots(chilrdren, instance.slots);
+    }
 }
 function normalizeSlotValue(value) {
     return Array.isArray(value) ? value : [value];
@@ -165,7 +169,7 @@ function normalizeSlotValue(value) {
 function normalizeObjectSlots(children, slots) {
     for (const key in children) {
         const value = children[key];
-        slots[key] = normalizeSlotValue(value);
+        slots[key] = (props) => normalizeSlotValue(value(props));
     }
 }
 
@@ -279,6 +283,11 @@ function createVNode(type, props, children) {
     else if (Array.isArray(children)) {
         vnode.shapeFlag |= 8;
     }
+    if (vnode.shapeFlag & 2) {
+        if (isObject(children)) {
+            vnode.shapeFlag |= 16;
+        }
+    }
     return vnode;
 }
 function getShapeFlag(type) {
@@ -299,12 +308,14 @@ function h(type, props, children) {
     return vnode;
 }
 
-function renderSlots(slots, name) {
+function renderSlots(slots, name, props) {
     const slot = slots[name];
     if (slot) {
+        if (typeof slot === 'function') {
+            return createVNode('div', {}, slot(props));
+        }
         return createVNode('div', {}, slot);
     }
-    return createVNode('div', {}, slots);
 }
 
 class RefImpl {

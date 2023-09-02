@@ -19,3 +19,18 @@ export const Foo1 = {
 		return h('div', {}, [renderSlots(this.$slots, 'header'), Child, renderSlots(this.$slots, 'footer')]);
 	},
 };
+
+export const Foo2 = {
+	name: 'Foo2',
+	setup(props, { emit }) {},
+	render() {
+		const age = 2;
+		const Child = h('div', {}, 'child foo');
+		console.log(this.$slots);
+		return h('div', {}, [
+			renderSlots(this.$slots, 'header', { age }),
+			Child,
+			renderSlots(this.$slots, 'footer', { age }),
+		]);
+	},
+};

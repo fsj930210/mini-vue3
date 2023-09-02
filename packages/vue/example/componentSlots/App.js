@@ -1,5 +1,5 @@
 import { h } from '../../dist/mini-vue3.esm.js';
-import { Foo, Foo1 } from './Foo.js';
+import { Foo, Foo1, Foo2 } from './Foo.js';
 
 export default {
 	name: 'App',
@@ -20,14 +20,22 @@ export default {
 				},
 				this.msg
 			),
-			h(Foo, {}, h('span', {}, 'slot 是一个vnode')),
-			h(Foo, {}, [h('span', {}, 'slot vnode数组'), h('span', { style: 'margin-left:8px' }, 'slot vnode数组')]),
+			// h(Foo, {}, h('span', {}, 'slot 是一个vnode')),
+			// h(Foo, {}, [h('span', {}, 'slot vnode数组'), h('span', { style: 'margin-left:8px' }, 'slot vnode数组')]),
+			// h(
+			// 	Foo1,
+			// 	{},
+			// 	{
+			// 		header: h('header', {}, 'slot是具名-header'),
+			// 		footer: h('footer', {}, 'slot是具名-footer'),
+			// 	}
+			// ),
 			h(
-				Foo1,
+				Foo2,
 				{},
 				{
-					header: h('header', {}, 'slot是具名-header'),
-					footer: h('footer', {}, 'slot是具名-footer'),
+					header: ({ age }) => h('header', {}, 'slot是具名-header' + age),
+					footer: ({ age }) => h('footer', {}, 'slot是具名-footer' + age),
 				}
 			),
 		]);
