@@ -18,6 +18,20 @@ function hasChanged(value, oldValue) {
 function hasOwn(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
+function toHandlerKey(str) {
+    return str ? `on${capitalize(str)}` : ``;
+}
+const camelizeRE = /-(\w)/g;
+function camelize(str) {
+    return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''));
+}
+const hyphenateRE = /\B([A-Z])/g;
+function hyphenate(str) {
+    return str.replace(hyphenateRE, '-$1').toLowerCase();
+}
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 function createDep(effects) {
     const dep = new Set(effects);
@@ -130,13 +144,26 @@ const publicInstanceProxyHandlers = {
     },
 };
 
+function emit(instance, eventName, ...restArgs) {
+    const { props } = instance;
+    let handler = props[toHandlerKey(camelize(eventName))];
+    if (!handler) {
+        handler = props[toHandlerKey(hyphenate(eventName))];
+    }
+    if (handler) {
+        handler(...restArgs);
+    }
+}
+
 function createComponentInstance(vnode) {
     const component = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
+        emit: () => { },
     };
+    component.emit = emit.bind(null, component);
     return component;
 }
 function setupComponent(instance) {
@@ -148,7 +175,7 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({ _: instance }, publicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
-        const setupResult = setup(shallowReadonly(instance.props));
+        const setupResult = setup(shallowReadonly(instance.props), { emit: instance.emit });
         handleSetupResult(instance, setupResult);
     }
 }
