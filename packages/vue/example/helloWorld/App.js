@@ -1,5 +1,5 @@
 import { h, ref } from '../../dist/mini-vue3.esm.js';
-
+import { Foo } from './Foo.js';
 const count = ref(0);
 window.$self = null;
 const HelloWorld = {
@@ -37,6 +37,7 @@ export default {
 				},
 				this.msg
 			),
+			h(Foo, { count: 1 }),
 			h('p', {}, '主页'),
 			h(HelloWorld),
 		]);
