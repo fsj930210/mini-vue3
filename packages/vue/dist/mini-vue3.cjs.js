@@ -156,8 +156,17 @@ function emit(instance, eventName, ...restArgs) {
     }
 }
 
-function initSlots(instance, slots) {
-    instance.slots = Array.isArray(slots) ? slots : [slots];
+function initSlots(instance, chilrdren) {
+    normalizeObjectSlots(chilrdren, instance.slots);
+}
+function normalizeSlotValue(value) {
+    return Array.isArray(value) ? value : [value];
+}
+function normalizeObjectSlots(children, slots) {
+    for (const key in children) {
+        const value = children[key];
+        slots[key] = normalizeSlotValue(value);
+    }
 }
 
 function createComponentInstance(vnode) {
@@ -290,7 +299,11 @@ function h(type, props, children) {
     return vnode;
 }
 
-function renderSlots(slots) {
+function renderSlots(slots, name) {
+    const slot = slots[name];
+    if (slot) {
+        return createVNode('div', {}, slot);
+    }
     return createVNode('div', {}, slots);
 }
 
