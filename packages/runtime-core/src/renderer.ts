@@ -1,4 +1,4 @@
-import { isObject, shapeFlags } from '@mini-vue3/shared';
+import { shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
 
 export function render(vnode, container) {

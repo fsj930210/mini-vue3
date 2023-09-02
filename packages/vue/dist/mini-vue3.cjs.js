@@ -127,6 +127,7 @@ function initProps(instance, rawProps) {
 
 const publicPropertiesMap = {
     $el: (instance) => instance.vnode.el,
+    $slots: (instance) => instance.slots,
 };
 const publicInstanceProxyHandlers = {
     get({ _: instance }, key) {
@@ -155,12 +156,17 @@ function emit(instance, eventName, ...restArgs) {
     }
 }
 
+function initSlots(instance, slots) {
+    instance.slots = slots;
+}
+
 function createComponentInstance(vnode) {
     const component = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
+        slots: {},
         emit: () => { },
     };
     component.emit = emit.bind(null, component);
@@ -168,6 +174,7 @@ function createComponentInstance(vnode) {
 }
 function setupComponent(instance) {
     initProps(instance, instance.vnode.props);
+    initSlots(instance, instance.vnode.children);
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
