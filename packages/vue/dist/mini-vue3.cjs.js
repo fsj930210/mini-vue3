@@ -157,7 +157,7 @@ function emit(instance, eventName, ...restArgs) {
 }
 
 function initSlots(instance, slots) {
-    instance.slots = slots;
+    instance.slots = Array.isArray(slots) ? slots : [slots];
 }
 
 function createComponentInstance(vnode) {
@@ -290,6 +290,10 @@ function h(type, props, children) {
     return vnode;
 }
 
+function renderSlots(slots) {
+    return createVNode('div', {}, slots);
+}
+
 class RefImpl {
     constructor(_value) {
         this.__v_isRef = true;
@@ -322,4 +326,5 @@ function ref(value) {
 exports.createApp = createApp;
 exports.h = h;
 exports.ref = ref;
+exports.renderSlots = renderSlots;
 //# sourceMappingURL=mini-vue3.cjs.js.map

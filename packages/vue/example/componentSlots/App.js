@@ -20,7 +20,8 @@ export default {
 				},
 				this.msg
 			),
-			h(Foo, {}, h('span', {}, 'slots')),
+			h(Foo, {}, h('span', {}, 'slot 是一个vnode')),
+			h(Foo, {}, [h('span', {}, 'slot vnode数组'), h('span', { style: 'margin-left:8px' }, 'slot vnode数组')]),
 		]);
 	},
 };

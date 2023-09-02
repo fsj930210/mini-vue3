@@ -1,3 +1,3 @@
 export function initSlots(instance, slots) {
-	instance.slots = slots;
+	instance.slots = Array.isArray(slots) ? slots : [slots];
 }
