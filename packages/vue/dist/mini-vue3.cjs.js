@@ -174,13 +174,15 @@ function normalizeObjectSlots(children, slots) {
 }
 
 let currentInstance = null;
-function createComponentInstance(vnode) {
+function createComponentInstance(vnode, parent) {
     const component = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
         slots: {},
+        provides: {},
+        parent,
         emit: () => { },
     };
     component.emit = emit.bind(null, component);
@@ -252,24 +254,24 @@ function getShapeFlag(type) {
     return typeof type === 'string' ? 1 : 2;
 }
 
-function render(vnode, container) {
-    patch(vnode, container);
+function render(vnode, container, parentComponent) {
+    patch(vnode, container, parentComponent);
 }
-function patch(vnode, container) {
+function patch(vnode, container, parentComponent) {
     const { shapeFlag, type } = vnode;
     switch (type) {
         case Fragment:
-            processFragement(vnode, container);
+            processFragement(vnode, container, parentComponent);
             break;
         case Text:
             processText(vnode, container);
             break;
         default:
             if (shapeFlag & 2) {
-                processComponent(vnode, container);
+                processComponent(vnode, container, parentComponent);
             }
             else if (shapeFlag & 1) {
-                processElement(vnode, container);
+                processElement(vnode, container, parentComponent);
             }
             break;
     }
@@ -278,27 +280,27 @@ function processText(vnode, container) {
     const textNode = (vnode.el = document.createTextNode(vnode.children));
     container.appendChild(textNode);
 }
-function processFragement(vnode, container) {
-    mountChildren(vnode, container);
+function processFragement(vnode, container, parentComponent) {
+    mountChildren(vnode, container, parentComponent);
 }
-function processComponent(vnode, container) {
-    mountComponent(vnode, container);
+function processComponent(vnode, container, parentComponent) {
+    mountComponent(vnode, container, parentComponent);
 }
-function mountComponent(initialVnode, container) {
-    const instance = createComponentInstance(initialVnode);
+function mountComponent(initialVnode, container, parentComponent) {
+    const instance = createComponentInstance(initialVnode, parentComponent);
     setupComponent(instance);
     setupRenderEffect(instance, initialVnode, container);
 }
 function setupRenderEffect(instance, initialVnode, container) {
     const { proxy } = instance;
     const subTree = instance.render.call(proxy);
-    patch(subTree, container);
+    patch(subTree, container, instance);
     initialVnode.el = subTree.el;
 }
-function processElement(vnode, container) {
-    mountElement(vnode, container);
+function processElement(vnode, container, parentComponent) {
+    mountElement(vnode, container, parentComponent);
 }
-function mountElement(vnode, container) {
+function mountElement(vnode, container, parentComponent) {
     const el = (vnode.el = document.createElement(vnode.type));
     const { props, children, shapeFlag } = vnode;
     const isOn = (key) => /^on[A-Z]/.test(key);
@@ -316,13 +318,13 @@ function mountElement(vnode, container) {
         el.textContent = children;
     }
     else if (shapeFlag & 8) {
-        mountChildren(vnode, el);
+        mountChildren(vnode, el, parentComponent);
     }
     container.appendChild(el);
 }
-function mountChildren(vnode, container) {
+function mountChildren(vnode, container, parentComponent) {
     vnode.children.forEach((v) => {
-        patch(v, container);
+        patch(v, container, parentComponent);
     });
 }
 
@@ -347,6 +349,21 @@ function renderSlots(slots, name, props) {
             return createVNode(Fragment, {}, slot(props));
         }
         return createVNode(Fragment, {}, slot(props));
+    }
+}
+
+function provide(key, val) {
+    const instance = getCurrentInstance();
+    if (instance) {
+        const { provides } = instance;
+        provides[key] = val;
+    }
+}
+function inject(key) {
+    const instance = getCurrentInstance();
+    if (instance) {
+        const { parent } = instance;
+        return parent.provides[key];
     }
 }
 
@@ -383,6 +400,8 @@ exports.createApp = createApp;
 exports.createTextNode = createTextNode;
 exports.getCurrentInstance = getCurrentInstance;
 exports.h = h;
+exports.inject = inject;
+exports.provide = provide;
 exports.ref = ref;
 exports.renderSlots = renderSlots;
 //# sourceMappingURL=mini-vue3.cjs.js.map

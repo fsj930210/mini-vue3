@@ -2,12 +2,12 @@ import { shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
 import { Fragment, Text } from './vnode';
 
-export function render(vnode, container) {
+export function render(vnode, container, parentComponent) {
 	// 这个方法主要是调用patch方法
-	patch(vnode, container);
+	patch(vnode, container, parentComponent);
 }
 
-function patch(vnode, container) {
+function patch(vnode, container, parentComponent) {
 	// 判断是element类型还是component vnode.type object就是组件 string就是element
 	// 通过shapeFlag位运算判断是否是组件还是elment
 
@@ -15,7 +15,7 @@ function patch(vnode, container) {
 
 	switch (type) {
 		case Fragment:
-			processFragement(vnode, container);
+			processFragement(vnode, container, parentComponent);
 			break;
 		case Text:
 			processText(vnode, container);
@@ -23,10 +23,10 @@ function patch(vnode, container) {
 		default:
 			if (shapeFlag & shapeFlags.STATEFUL_COMPONENT) {
 				// 处理组件
-				processComponent(vnode, container);
+				processComponent(vnode, container, parentComponent);
 			} else if (shapeFlag & shapeFlags.ELEMENT) {
 				// 处理element
-				processElement(vnode, container);
+				processElement(vnode, container, parentComponent);
 			}
 			break;
 	}
@@ -35,16 +35,16 @@ function processText(vnode, container) {
 	const textNode = (vnode.el = document.createTextNode(vnode.children));
 	container.appendChild(textNode);
 }
-function processFragement(vnode, container) {
-	mountChildren(vnode, container);
+function processFragement(vnode, container, parentComponent) {
+	mountChildren(vnode, container, parentComponent);
 }
-function processComponent(vnode, container) {
+function processComponent(vnode, container, parentComponent) {
 	// 挂载组件
-	mountComponent(vnode, container);
+	mountComponent(vnode, container, parentComponent);
 }
-function mountComponent(initialVnode, container) {
+function mountComponent(initialVnode, container, parentComponent) {
 	// 创建组件实例
-	const instance = createComponentInstance(initialVnode);
+	const instance = createComponentInstance(initialVnode, parentComponent);
 	// 继续处理组件实例
 	setupComponent(instance);
 	// 调用render
@@ -58,15 +58,15 @@ function setupRenderEffect(instance, initialVnode, container) {
 	const subTree = instance.render.call(proxy);
 	// vnode -> patch
 	// vnode -> element -> mountElement
-	patch(subTree, container);
+	patch(subTree, container, instance);
 	// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
 	initialVnode.el = subTree.el;
 }
-function processElement(vnode, container) {
+function processElement(vnode, container, parentComponent) {
 	// mount
-	mountElement(vnode, container);
+	mountElement(vnode, container, parentComponent);
 }
-function mountElement(vnode, container) {
+function mountElement(vnode, container, parentComponent) {
 	// 将el存入vnode中，为后面this.$el好拿到el，但是这里的el是不完整的
 	// 因为这里只是在mount element时才会调用，而在mount component时el没有
 	const el = (vnode.el = document.createElement(vnode.type));
@@ -86,12 +86,12 @@ function mountElement(vnode, container) {
 		el.textContent = children;
 	} else if (shapeFlag & shapeFlags.ARRAY_CHILREN) {
 		// array_children
-		mountChildren(vnode, el);
+		mountChildren(vnode, el, parentComponent);
 	}
 	container.appendChild(el);
 }
-function mountChildren(vnode, container) {
+function mountChildren(vnode, container, parentComponent) {
 	vnode.children.forEach((v) => {
-		patch(v, container);
+		patch(v, container, parentComponent);
 	});
 }
