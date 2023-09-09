@@ -2,9 +2,9 @@ import { shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
 import { Fragment, Text } from './vnode';
 
-export function render(vnode, container, parentComponent) {
+export function render(vnode, container) {
 	// 这个方法主要是调用patch方法
-	patch(vnode, container, parentComponent);
+	patch(vnode, container, null);
 }
 
 function patch(vnode, container, parentComponent) {

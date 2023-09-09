@@ -173,13 +173,14 @@ function normalizeObjectSlots(children, slots) {
 
 let currentInstance = null;
 function createComponentInstance(vnode, parent) {
+    console.log('createComponentInstance: ', vnode, 'parent: ', parent);
     const component = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
         slots: {},
-        provides: {},
+        provides: parent ? parent.provides : {},
         parent,
         emit: () => { },
     };
@@ -252,8 +253,8 @@ function getShapeFlag(type) {
     return typeof type === 'string' ? 1 : 2;
 }
 
-function render(vnode, container, parentComponent) {
-    patch(vnode, container, parentComponent);
+function render(vnode, container) {
+    patch(vnode, container, null);
 }
 function patch(vnode, container, parentComponent) {
     const { shapeFlag, type } = vnode;
@@ -351,17 +352,30 @@ function renderSlots(slots, name, props) {
 }
 
 function provide(key, val) {
-    const instance = getCurrentInstance();
-    if (instance) {
-        const { provides } = instance;
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        let { provides, parent } = currentInstance;
+        const parentProvides = parent === null || parent === void 0 ? void 0 : parent.provides;
+        if (parentProvides === provides) {
+            provides = currentInstance.provides = Object.create(parentProvides);
+        }
         provides[key] = val;
     }
 }
-function inject(key) {
-    const instance = getCurrentInstance();
-    if (instance) {
-        const { parent } = instance;
-        return parent.provides[key];
+function inject(key, defaultValue) {
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        const { parent } = currentInstance;
+        const parentProvides = parent.provides;
+        if (key in parentProvides) {
+            return parentProvides[key];
+        }
+        else {
+            if (typeof defaultValue === 'function') {
+                return defaultValue();
+            }
+            return defaultValue;
+        }
     }
 }
 

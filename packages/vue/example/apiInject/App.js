@@ -7,7 +7,7 @@ const ProviderOne = {
 		provide('bar', 'bar');
 	},
 	render() {
-		return h(Consumer);
+		return h(ProviderTwo);
 	},
 };
 
@@ -15,16 +15,17 @@ const ProviderTwo = {
 	setup() {
 		// override parent value
 		provide('foo', 'fooOverride');
-		provide('baz', 'baz');
+		// provide('baz', 'baz');
 		const foo = inject('foo');
+		return { foo };
 		// 这里获取的 foo 的值应该是 "foo"
 		// 这个组件的子组件获取的 foo ，才应该是 fooOverride
-		if (foo !== 'foo') {
-			throw new Error('Foo should equal to foo');
-		}
+		// if (foo !== 'foo') {
+		// 	throw new Error('Foo should equal to foo');
+		// }
 	},
 	render() {
-		return h(Consumer);
+		return h('div', {}, [h('div', {}, `ProviderTwo ${this.foo}`), h(Consumer)]);
 	},
 };
 
@@ -32,7 +33,7 @@ const Consumer = {
 	setup() {
 		const foo = inject('foo');
 		const bar = inject('bar');
-		const baz = inject('baz');
+		const baz = inject('baz', 'defaultBaz');
 
 		return {
 			foo,

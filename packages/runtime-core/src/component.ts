@@ -5,13 +5,14 @@ import { emit } from './componentEmit';
 import { initSlots } from './componentSlots';
 let currentInstance = null;
 export function createComponentInstance(vnode, parent) {
+	console.log('createComponentInstance: ', vnode, 'parent: ', parent);
 	const component = {
 		vnode,
 		type: vnode.type,
 		setupState: {},
 		props: {},
 		slots: {},
-		provides: {},
+		provides: parent ? parent.provides : {},
 		parent,
 		emit: () => {},
 	};
