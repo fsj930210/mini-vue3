@@ -1,4 +1,4 @@
-import { h } from '../../dist/mini-vue3.esm.js';
+import { h, createTextNode } from '../../dist/mini-vue3.esm.js';
 import { Foo, Foo1, Foo2 } from './Foo.js';
 
 export default {
@@ -20,6 +20,7 @@ export default {
 				},
 				this.msg
 			),
+			createTextNode('我是文本节点呀'),
 			// h(Foo, {}, h('span', {}, 'slot 是一个vnode')),
 			// h(Foo, {}, [h('span', {}, 'slot vnode数组'), h('span', { style: 'margin-left:8px' }, 'slot vnode数组')]),
 			// h(

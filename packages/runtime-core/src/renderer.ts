@@ -1,5 +1,6 @@
 import { shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
+import { Fragment, Text } from './vnode';
 
 export function render(vnode, container) {
 	// 这个方法主要是调用patch方法
@@ -9,16 +10,34 @@ export function render(vnode, container) {
 function patch(vnode, container) {
 	// 判断是element类型还是component vnode.type object就是组件 string就是element
 	// 通过shapeFlag位运算判断是否是组件还是elment
-	const { shapeFlag } = vnode;
-	if (shapeFlag & shapeFlags.STATEFUL_COMPONENT) {
-		// 处理组件
-		processComponent(vnode, container);
-	} else if (shapeFlag & shapeFlags.ELEMENT) {
-		// 处理element
-		processElement(vnode, container);
+
+	const { shapeFlag, type } = vnode;
+
+	switch (type) {
+		case Fragment:
+			processFragement(vnode, container);
+			break;
+		case Text:
+			processText(vnode, container);
+			break;
+		default:
+			if (shapeFlag & shapeFlags.STATEFUL_COMPONENT) {
+				// 处理组件
+				processComponent(vnode, container);
+			} else if (shapeFlag & shapeFlags.ELEMENT) {
+				// 处理element
+				processElement(vnode, container);
+			}
+			break;
 	}
 }
-
+function processText(vnode, container) {
+	const textNode = (vnode.el = document.createTextNode(vnode.children));
+	container.appendChild(textNode);
+}
+function processFragement(vnode, container) {
+	mountChildren(vnode, container);
+}
 function processComponent(vnode, container) {
 	// 挂载组件
 	mountComponent(vnode, container);

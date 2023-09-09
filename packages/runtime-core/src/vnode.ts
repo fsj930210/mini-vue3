@@ -1,5 +1,8 @@
 import { isObject, shapeFlags } from '@mini-vue3/shared';
 
+export const Fragment = Symbol('Fragment');
+export const Text = Symbol('Text');
+
 export function createVNode(type, props?, children?) {
 	const vnode = {
 		type,
@@ -18,6 +21,11 @@ export function createVNode(type, props?, children?) {
 			vnode.shapeFlag |= shapeFlags.SLOT_CHILDREN;
 		}
 	}
+	return vnode;
+}
+
+export function createTextNode(text: string) {
+	const vnode = createVNode(Text, {}, text);
 	return vnode;
 }
 function getShapeFlag(type) {

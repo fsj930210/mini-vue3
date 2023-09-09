@@ -26,7 +26,6 @@ export const Foo2 = {
 	render() {
 		const age = 2;
 		const Child = h('div', {}, 'child foo');
-		console.log(this.$slots);
 		return h('div', {}, [
 			renderSlots(this.$slots, 'header', { age }),
 			Child,
