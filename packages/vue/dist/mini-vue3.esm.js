@@ -171,6 +171,7 @@ function normalizeObjectSlots(children, slots) {
     }
 }
 
+let currentInstance = null;
 function createComponentInstance(vnode) {
     const component = {
         vnode,
@@ -183,6 +184,12 @@ function createComponentInstance(vnode) {
     component.emit = emit.bind(null, component);
     return component;
 }
+function getCurrentInstance() {
+    return currentInstance;
+}
+function setCurrentInstance(instance) {
+    currentInstance = instance;
+}
 function setupComponent(instance) {
     initProps(instance, instance.vnode.props);
     initSlots(instance, instance.vnode.children);
@@ -193,7 +200,9 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({ _: instance }, publicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
+        setCurrentInstance(instance);
         const setupResult = setup(shallowReadonly(instance.props), { emit: instance.emit });
+        setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
     }
 }
@@ -368,5 +377,5 @@ function ref(value) {
     return refImpl;
 }
 
-export { createApp, createTextNode, h, ref, renderSlots };
+export { createApp, createTextNode, getCurrentInstance, h, ref, renderSlots };
 //# sourceMappingURL=mini-vue3.esm.js.map

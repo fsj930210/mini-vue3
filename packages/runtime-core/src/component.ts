@@ -3,7 +3,7 @@ import { initProps } from './componentProps';
 import { publicInstanceProxyHandlers } from './componentPublicInstance';
 import { emit } from './componentEmit';
 import { initSlots } from './componentSlots';
-
+let currentInstance = null;
 export function createComponentInstance(vnode) {
 	const component = {
 		vnode,
@@ -16,7 +16,12 @@ export function createComponentInstance(vnode) {
 	component.emit = emit.bind(null, component) as any;
 	return component;
 }
-
+export function getCurrentInstance() {
+	return currentInstance;
+}
+function setCurrentInstance(instance) {
+	currentInstance = instance;
+}
 export function setupComponent(instance) {
 	// init props
 	initProps(instance, instance.vnode.props);
@@ -34,7 +39,9 @@ function setupStatefulComponent(instance) {
 	instance.proxy = new Proxy({ _: instance }, publicInstanceProxyHandlers);
 	const { setup } = Component;
 	if (setup) {
+		setCurrentInstance(instance);
 		const setupResult = setup(shallowReadonly(instance.props), { emit: instance.emit });
+		setCurrentInstance(null);
 		// 处理setup返回值 可以返回function也可以返回object
 		handleSetupResult(instance, setupResult);
 	}
