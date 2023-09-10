@@ -234,7 +234,11 @@ export function createRenderer(options: any) {
 					newIndex = newIndexMap.get(prevChild.key);
 				} else {
 					// 遍历删除
-					for (let j = s2; j < e2; j++) {
+					// 这里需写上j<=e2如果不写等于走的是创建逻辑
+					// 写上走的是移动逻辑
+					// 具体可以debug example fix
+					// for (let j = s2; j < e2; j++) {
+					for (let j = s2; j <= e2; j++) {
 						if (isSameVnodeType(prevChild, c2[j])) {
 							newIndex = j;
 							break;

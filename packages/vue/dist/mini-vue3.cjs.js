@@ -609,7 +609,7 @@ function createRenderer(options) {
                     newIndex = newIndexMap.get(prevChild.key);
                 }
                 else {
-                    for (let j = s2; j < e2; j++) {
+                    for (let j = s2; j <= e2; j++) {
                         if (isSameVnodeType(prevChild, c2[j])) {
                             newIndex = j;
                             break;
