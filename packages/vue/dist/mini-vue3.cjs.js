@@ -38,6 +38,9 @@ function hyphenate(str) {
 function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
+function isSameVnodeType(n1, n2) {
+    return n1.type === n2.type && n1.key === n2.key;
+}
 
 const publicPropertiesMap = {
     $el: (instance) => instance.vnode.el,
@@ -359,6 +362,7 @@ function createVNode(type, props, children) {
     const vnode = {
         type,
         props,
+        key: props === null || props === void 0 ? void 0 : props.key,
         children,
         shapeFlag: getShapeFlag(type),
         el: null,
@@ -441,23 +445,23 @@ function inject(key, defaultValue) {
 function createRenderer(options) {
     const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container) {
-        patch(null, vnode, container, null);
+        patch(null, vnode, container, null, null);
     }
-    function patch(n1, n2, container, parentComponent) {
+    function patch(n1, n2, container, parentComponent, anchor) {
         const { shapeFlag, type } = n2;
         switch (type) {
             case Fragment:
-                processFragement(n1, n2, container, parentComponent);
+                processFragement(n1, n2, container, parentComponent, anchor);
                 break;
             case Text:
                 processText(n1, n2, container);
                 break;
             default:
                 if (shapeFlag & 2) {
-                    processComponent(n1, n2, container, parentComponent);
+                    processComponent(n1, n2, container, parentComponent, anchor);
                 }
                 else if (shapeFlag & 1) {
-                    processElement(n1, n2, container, parentComponent);
+                    processElement(n1, n2, container, parentComponent, anchor);
                 }
                 break;
         }
@@ -466,23 +470,23 @@ function createRenderer(options) {
         const textNode = (n2.el = document.createTextNode(n2.children));
         container.appendChild(textNode);
     }
-    function processFragement(n1, n2, container, parentComponent) {
-        mountChildren(n2.children, container, parentComponent);
+    function processFragement(n1, n2, container, parentComponent, anchor) {
+        mountChildren(n2.children, container, parentComponent, anchor);
     }
-    function processComponent(n1, n2, container, parentComponent) {
-        mountComponent(n2, container, parentComponent);
+    function processComponent(n1, n2, container, parentComponent, anchor) {
+        mountComponent(n2, container, parentComponent, anchor);
     }
-    function mountComponent(initialVnode, container, parentComponent) {
+    function mountComponent(initialVnode, container, parentComponent, anchor) {
         const instance = createComponentInstance(initialVnode, parentComponent);
         setupComponent(instance);
-        setupRenderEffect(instance, initialVnode, container);
+        setupRenderEffect(instance, initialVnode, container, anchor);
     }
-    function setupRenderEffect(instance, initialVnode, container) {
+    function setupRenderEffect(instance, initialVnode, container, anchor) {
         effect(() => {
             if (!instance.isMounted) {
                 const { proxy } = instance;
                 const subTree = (instance.subTree = instance.render.call(proxy));
-                patch(null, subTree, container, instance);
+                patch(null, subTree, container, instance, anchor);
                 initialVnode.el = subTree.el;
                 instance.isMounted = true;
             }
@@ -491,19 +495,19 @@ function createRenderer(options) {
                 const subTree = instance.render.call(proxy);
                 const prevTree = instance.subTree;
                 instance.subTree = subTree;
-                patch(prevTree, subTree, container, instance);
+                patch(prevTree, subTree, container, instance, anchor);
             }
         });
     }
-    function processElement(n1, n2, container, parentComponent) {
+    function processElement(n1, n2, container, parentComponent, anchor) {
         if (!n1) {
-            mountElement(n2, container, parentComponent);
+            mountElement(n2, container, parentComponent, anchor);
         }
         else {
-            patchElement(n1, n2, container, parentComponent);
+            patchElement(n1, n2, container, parentComponent, anchor);
         }
     }
-    function patchElement(n1, n2, container, parentComponent) {
+    function patchElement(n1, n2, container, parentComponent, anchor) {
         console.log('patchElement');
         console.log(n1);
         console.log(n2);
@@ -511,9 +515,9 @@ function createRenderer(options) {
         const nextProps = n2.props || EMPTY_OBJECT;
         const el = (n2.el = n1.el);
         patchProp(el, prevProps, nextProps);
-        patchChilren(n1, n2, container, parentComponent);
+        patchChilren(n1, n2, el, parentComponent, anchor);
     }
-    function patchChilren(n1, n2, container, parentComponent) {
+    function patchChilren(n1, n2, container, parentComponent, anchor) {
         const { shapeFlag: prevShapeFlag, children: c1 } = n1;
         const { shapeFlag: nextShapeFlag, children: c2 } = n2;
         if (nextShapeFlag & 4) {
@@ -527,7 +531,92 @@ function createRenderer(options) {
         else {
             if (prevShapeFlag & 4) {
                 hostSetElementText(container, '');
-                mountChildren(n2.children, container, parentComponent);
+                mountChildren(n2.children, container, parentComponent, anchor);
+            }
+            else {
+                patchKeyedChildren(c1, c2, container, parentComponent, anchor);
+            }
+        }
+    }
+    function patchKeyedChildren(c1, c2, container, parentComponent, anchor) {
+        let i = 0;
+        const l2 = c2.length;
+        let e1 = c1.length - 1;
+        let e2 = l2 - 1;
+        while (i <= e1 && i <= e2) {
+            const n1 = c1[i];
+            const n2 = c2[i];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, container, parentComponent, anchor);
+            }
+            else {
+                break;
+            }
+            i++;
+        }
+        while (i <= e1 && i <= e2) {
+            const n1 = c1[e1];
+            const n2 = c2[e2];
+            if (isSameVnodeType(n1, n2)) {
+                patch(n1, n2, container, parentComponent, anchor);
+            }
+            else {
+                break;
+            }
+            e1--;
+            e2--;
+        }
+        if (i > e1) {
+            if (i <= e2) {
+                const nextPos = e2 + 1;
+                const anchor = nextPos < l2 ? c2[nextPos].el : null;
+                while (i <= e2) {
+                    patch(null, c2[i], container, parentComponent, anchor);
+                    i++;
+                }
+            }
+        }
+        else if (i > e2) {
+            while (i <= e1) {
+                hostRemove(c1[i].el);
+                i++;
+            }
+        }
+        else {
+            let s1 = i;
+            let s2 = i;
+            const toBePatched = e2 - s2 + 1;
+            let patched = 0;
+            const newIndexMap = new Map();
+            for (let i = s2; i <= e2; i++) {
+                const nextChild = c2[i];
+                newIndexMap.set(nextChild.key, i);
+            }
+            for (let i = s1; i <= e1; i++) {
+                const prevChild = c1[i];
+                if (patched >= toBePatched) {
+                    hostRemove(prevChild.el);
+                    continue;
+                }
+                let newIndex;
+                if (prevChild.key !== null && prevChild.key !== undefined) {
+                    newIndex = newIndexMap.get(prevChild.key);
+                }
+                else {
+                    for (let j = s2; j < e2; j++) {
+                        if (isSameVnodeType(prevChild, c2[j])) {
+                            newIndex = j;
+                            break;
+                        }
+                    }
+                }
+                if (newIndex === undefined) {
+                    hostRemove(prevChild.el);
+                }
+                else {
+                    patch(prevChild, c2[newIndex], container, parentComponent, null);
+                    patched++;
+                }
             }
         }
     }
@@ -555,7 +644,7 @@ function createRenderer(options) {
             }
         }
     }
-    function mountElement(vnode, container, parentComponent) {
+    function mountElement(vnode, container, parentComponent, anchor) {
         const el = (vnode.el = hostCreateElement(vnode.type));
         const { props, children, shapeFlag } = vnode;
         for (const prop in props) {
@@ -566,13 +655,13 @@ function createRenderer(options) {
             el.textContent = children;
         }
         else if (shapeFlag & 8) {
-            mountChildren(vnode.children, el, parentComponent);
+            mountChildren(vnode.children, el, parentComponent, anchor);
         }
-        hostInsert(el, container);
+        hostInsert(el, container, anchor);
     }
-    function mountChildren(children, container, parentComponent) {
+    function mountChildren(children, container, parentComponent, anchor) {
         children.forEach((v) => {
-            patch(null, v, container, parentComponent);
+            patch(null, v, container, parentComponent, anchor);
         });
     }
     return {
@@ -598,8 +687,8 @@ function patchProps(el, key, prevVal, nextVal) {
         }
     }
 }
-function insert(el, parent) {
-    parent.append(el);
+function insert(child, parent, anchor) {
+    parent.insertBefore(child, anchor || null);
 }
 function remove(child) {
     const parent = child.parentNode;

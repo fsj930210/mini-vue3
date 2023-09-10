@@ -32,3 +32,6 @@ export function hyphenate(str) {
 export function capitalize(str: string) {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 }
+export function isSameVnodeType(n1, n2) {
+	return n1.type === n2.type && n1.key === n2.key;
+}
