@@ -439,7 +439,7 @@ function inject(key, defaultValue) {
 }
 
 function createRenderer(options) {
-    const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert } = options;
+    const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container) {
         patch(null, vnode, container, null);
     }
@@ -467,7 +467,7 @@ function createRenderer(options) {
         container.appendChild(textNode);
     }
     function processFragement(n1, n2, container, parentComponent) {
-        mountChildren(n2, container, parentComponent);
+        mountChildren(n2.children, container, parentComponent);
     }
     function processComponent(n1, n2, container, parentComponent) {
         mountComponent(n2, container, parentComponent);
@@ -500,10 +500,10 @@ function createRenderer(options) {
             mountElement(n2, container, parentComponent);
         }
         else {
-            patchElement(n1, n2);
+            patchElement(n1, n2, container, parentComponent);
         }
     }
-    function patchElement(n1, n2, container) {
+    function patchElement(n1, n2, container, parentComponent) {
         console.log('patchElement');
         console.log(n1);
         console.log(n2);
@@ -511,6 +511,31 @@ function createRenderer(options) {
         const nextProps = n2.props || EMPTY_OBJECT;
         const el = (n2.el = n1.el);
         patchProp(el, prevProps, nextProps);
+        patchChilren(n1, n2, container, parentComponent);
+    }
+    function patchChilren(n1, n2, container, parentComponent) {
+        const { shapeFlag: prevShapeFlag, children: c1 } = n1;
+        const { shapeFlag: nextShapeFlag, children: c2 } = n2;
+        if (nextShapeFlag & 4) {
+            if (prevShapeFlag & 8) {
+                unmountChildren(c1);
+            }
+            if (c1 !== c2) {
+                hostSetElementText(container, c2);
+            }
+        }
+        else {
+            if (prevShapeFlag & 4) {
+                hostSetElementText(container, '');
+                mountChildren(n2.children, container, parentComponent);
+            }
+        }
+    }
+    function unmountChildren(children) {
+        for (let i = 0; i < children.length; i++) {
+            const el = children[i].el;
+            hostRemove(el);
+        }
     }
     function patchProp(el, prevProps, nextProps) {
         if (prevProps !== nextProps) {
@@ -541,12 +566,12 @@ function createRenderer(options) {
             el.textContent = children;
         }
         else if (shapeFlag & 8) {
-            mountChildren(vnode, el, parentComponent);
+            mountChildren(vnode.children, el, parentComponent);
         }
         hostInsert(el, container);
     }
-    function mountChildren(vnode, container, parentComponent) {
-        vnode.children.forEach((v) => {
+    function mountChildren(children, container, parentComponent) {
+        children.forEach((v) => {
             patch(null, v, container, parentComponent);
         });
     }
@@ -576,10 +601,21 @@ function patchProps(el, key, prevVal, nextVal) {
 function insert(el, parent) {
     parent.append(el);
 }
+function remove(child) {
+    const parent = child.parentNode;
+    if (parent) {
+        parent.removeChild(child);
+    }
+}
+function setElementText(el, text) {
+    el.textContent = text;
+}
 const renderer = createRenderer({
     createElement,
     patchProps,
     insert,
+    remove,
+    setElementText,
 });
 function createApp(...args) {
     return renderer.createApp(...args);
