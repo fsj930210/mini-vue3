@@ -198,13 +198,25 @@ export function createRenderer(options: any) {
 			// 优化
 			// 这些就是需要patched的数量
 			const toBePatched = e2 - s2 + 1;
+			// 已经patch的数量
 			let patched = 0;
 			// 先创建一个map缓存新的key对应的index
 			const newIndexMap = new Map();
+			// 创建一个定长数组
+			const newIndexToOldIndexMap = new Array(toBePatched);
+			// 移动flag
+			let moved = false;
+			let maxNewIndexSoFar = 0;
+			for (let i = 0; i < toBePatched; i++) {
+				// 0代表还没有建立映射关系
+				newIndexToOldIndexMap[i] = 0;
+			}
+			
 			for (let i = s2; i <= e2; i++) {
 				const nextChild = c2[i];
 				newIndexMap.set(nextChild.key, i);
 			}
+			// 遍历旧的children
 			for (let i = s1; i <= e1; i++) {
 				const prevChild = c1[i];
 				// 如果patch完了新的children，则老children后面的直接全部删除
@@ -229,11 +241,73 @@ export function createRenderer(options: any) {
 						}
 					}
 				}
+				// newIndex不存在则代表当前节点不在新children中，需要删除
 				if (newIndex === undefined) {
 					hostRemove(prevChild.el);
 				} else {
+					// 来确定中间的节点是不是需要移动
+          // 新的 newIndex 如果一直是升序的话，那么就说明没有移动
+          // 所以我们可以记录最后一个节点在新的里面的索引，然后看看是不是升序
+          // 不是升序的话，我们就可以确定节点移动过了
+					if (newIndex >= maxNewIndexSoFar) {
+						maxNewIndexSoFar = newIndex;
+					} else {
+						moved = true;
+					}
+					// newIndex是从新children最开始(0)算的而需要存的是中间部分
+					// 把中间部分当成一个新的数组，所以需要减去s2
+					// i 就是在旧children的索引 i 有可能为0
+					// i为0代表新节点在老节点里面没有需要创建
+					// 所以这里需要+1
+					newIndexToOldIndexMap[newIndex - s2] = i + 1;
+					// 存在则继续patch
 					patch(prevChild, c2[newIndex], container, parentComponent, null);
 					patched++;
+				}
+			}
+			// 利用最长递增子序列来优化移动逻辑
+      // 因为元素是升序的话，那么这些元素就是不需要移动的
+      // 而我们就可以通过最长递增子序列来获取到升序的列表
+      // 在移动的时候我们去对比这个列表，如果对比上的话，就说明当前元素不需要移动
+      // 通过 moved 来进行优化，如果没有移动过的话 那么就不需要执行算法
+      // getSequence 返回的是 newIndexToOldIndexMap 的索引值
+      // 所以后面我们可以直接遍历索引值来处理，也就是直接使用 toBePatched 即可
+			const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : []
+			// 最长递增子序列的索引
+			// let j = 0;
+			let j = increasingNewIndexSequence.length - 1;
+			// 遍历新节点
+			// 1. 需要找出老节点没有，而新节点有的 -> 需要把这个节点创建
+			// 2. 最后需要移动一下位置，比如 [c,d,e] -> [e,c,d]
+
+			// 这里倒循环是因为在 insert 的时候，需要保证锚点是处理完的节点（也就是已经确定位置了）
+			// 因为 insert 逻辑是使用的 insertBefore()
+			// for (let i = 0; i < toBePatched; i++) {
+			// 	// 不想等则不是在递增子序列里面则需要移动
+			// 	if (i !== increasingNewIndexSequence[j]) {
+			// 		console.log('移动位置')
+			// 	} else {
+			// 		j++
+			// 	}
+			// }
+			for (let i = toBePatched - 1; i >= 0; i--) {
+				// 这个是在新chidlren里面的索引
+				const nextIndex = i + s2;
+				const nextChild = c2[nextIndex];
+				const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : null;
+				// 代表老节点没有新节点有新增
+				if (newIndexToOldIndexMap[i] === 0) {
+					patch(null, nextChild, container, parentComponent, anchor)
+				} else if (moved) {
+					// 新节点对比老节点移动过菜执行下面的逻辑
+					// j < 0 则没有递增子序列 需要移动
+					// 不相等则不是在递增子序列里面则需要移动
+					if (j < 0 || i !== increasingNewIndexSequence[j]) {
+						console.log('移动位置');
+						hostInsert(nextChild.el, container, anchor);
+					} else {
+						j--
+					}
 				}
 			}
 		}
@@ -301,4 +375,44 @@ export function createRenderer(options: any) {
 	return {
 		createApp: createAppApi(render),
 	};
+}
+function getSequence(arr: number[]): number[] {
+	const p = arr.slice();
+	const result = [0];
+	let i, j, u, v, c;
+	const len = arr.length;
+	for (i = 0; i < len; i++) {
+		const arrI = arr[i];
+		if (arrI !== 0) {
+			j = result[result.length - 1];
+			if (arr[j] < arrI) {
+				p[i] = j;
+				result.push(i);
+				continue;
+			}
+			u = 0;
+			v = result.length - 1;
+			while (u < v) {
+				c = (u + v) >> 1;
+				if (arr[result[c]] < arrI) {
+					u = c + 1;
+				} else {
+					v = c;
+				}
+			}
+			if (arrI < arr[result[u]]) {
+				if (u > 0) {
+					p[i] = result[u - 1];
+				}
+				result[u] = i;
+			}
+		}
+	}
+	u = result.length;
+	v = result[u - 1];
+	while (u-- > 0) {
+		result[u] = v;
+		v = p[v];
+	}
+	return result;
 }
