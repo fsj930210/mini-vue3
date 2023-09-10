@@ -45,6 +45,7 @@ function isSameVnodeType(n1, n2) {
 const publicPropertiesMap = {
     $el: (instance) => instance.vnode.el,
     $slots: (instance) => instance.slots,
+    $props: (instance) => instance.props,
 };
 const publicInstanceProxyHandlers = {
     get({ _: instance }, key) {
@@ -315,6 +316,7 @@ function createComponentInstance(vnode, parent) {
         provides: parent ? parent.provides : {},
         parent,
         subTree: {},
+        next: null,
         isMounted: false,
         emit: () => { },
     };
@@ -366,6 +368,7 @@ function createVNode(type, props, children) {
         children,
         shapeFlag: getShapeFlag(type),
         el: null,
+        component: null
     };
     if (typeof children === 'string') {
         vnode.shapeFlag |= 4;
@@ -442,6 +445,34 @@ function inject(key, defaultValue) {
     }
 }
 
+function shouldUpdateComponent(prevVNode, nextVNode) {
+    const { props: prevProps } = prevVNode;
+    const { props: nextProps } = nextVNode;
+    if (prevProps === nextProps) {
+        return false;
+    }
+    if (!prevProps) {
+        return !!nextProps;
+    }
+    if (!nextProps) {
+        return true;
+    }
+    return hasPropsChanged(prevProps, nextProps);
+}
+function hasPropsChanged(prevProps, nextProps) {
+    const nextKeys = Object.keys(nextProps);
+    if (nextKeys.length !== Object.keys(prevProps).length) {
+        return true;
+    }
+    for (let i = 0; i < nextKeys.length; i++) {
+        const key = nextKeys[i];
+        if (nextProps[key] !== prevProps[key]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function createRenderer(options) {
     const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container) {
@@ -474,15 +505,33 @@ function createRenderer(options) {
         mountChildren(n2.children, container, parentComponent, anchor);
     }
     function processComponent(n1, n2, container, parentComponent, anchor) {
-        mountComponent(n2, container, parentComponent, anchor);
+        if (!n1) {
+            mountComponent(n2, container, parentComponent, anchor);
+        }
+        else {
+            updateComponent(n1, n2);
+        }
+    }
+    function updateComponent(n1, n2) {
+        const instance = (n2.component = n1.component);
+        if (shouldUpdateComponent(n1, n2)) {
+            instance.next = n2;
+            instance.update();
+        }
+        else {
+            console.log(`组件不需要更新: ${instance}`);
+            n2.component = n1.component;
+            n2.el = n1.el;
+            instance.vnode = n2;
+        }
     }
     function mountComponent(initialVnode, container, parentComponent, anchor) {
-        const instance = createComponentInstance(initialVnode, parentComponent);
+        const instance = (initialVnode.component = createComponentInstance(initialVnode, parentComponent));
         setupComponent(instance);
         setupRenderEffect(instance, initialVnode, container, anchor);
     }
     function setupRenderEffect(instance, initialVnode, container, anchor) {
-        effect(() => {
+        instance.update = effect(() => {
             if (!instance.isMounted) {
                 const { proxy } = instance;
                 const subTree = (instance.subTree = instance.render.call(proxy));
@@ -491,6 +540,12 @@ function createRenderer(options) {
                 instance.isMounted = true;
             }
             else {
+                console.log(`${instance.type.name}:调用更新逻辑`);
+                const { next, vnode } = instance;
+                if (next) {
+                    next.el = vnode.el;
+                    updateComponentPreRender(instance, next);
+                }
                 const { proxy } = instance;
                 const subTree = instance.render.call(proxy);
                 const prevTree = instance.subTree;
@@ -498,6 +553,15 @@ function createRenderer(options) {
                 patch(prevTree, subTree, container, instance, anchor);
             }
         });
+    }
+    function updateComponentPreRender(instance, nextVNode) {
+        nextVNode.component = instance;
+        instance.vnode = nextVNode;
+        instance.next = null;
+        const { props } = nextVNode;
+        console.log("更新组件的 props", props);
+        instance.props = props;
+        console.log("更新组件的 slots");
     }
     function processElement(n1, n2, container, parentComponent, anchor) {
         if (!n1) {

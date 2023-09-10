@@ -14,6 +14,7 @@ export function createComponentInstance(vnode, parent) {
 		provides: parent ? parent.provides : {},
 		parent,
 		subTree: {},
+		next: null, // 当前组件下次更新的vnode
 		isMounted: false, // 判断是更新还是初始化
 		emit: () => {},
 	};

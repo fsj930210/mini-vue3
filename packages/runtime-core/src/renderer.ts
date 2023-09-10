@@ -3,6 +3,7 @@ import { createComponentInstance, setupComponent } from './component';
 import { Fragment, Text } from './vnode';
 import { createAppApi } from './createApp';
 import { effect } from '@mini-vue3/reactivity';
+import { shouldUpdateComponent } from "./componentRenderUtils";
 
 export function createRenderer(options: any) {
 	const {
@@ -51,12 +52,36 @@ export function createRenderer(options: any) {
 		mountChildren(n2.children, container, parentComponent, anchor);
 	}
 	function processComponent(n1, n2, container, parentComponent, anchor) {
-		// 挂载组件
-		mountComponent(n2, container, parentComponent, anchor);
+		if (!n1) {
+			// 挂载组件
+			mountComponent(n2, container, parentComponent, anchor);
+		} else {
+			updateComponent(n1, n2)
+		}
+	}
+	function updateComponent(n1, n2) {
+		// 怎么更新组件，只需要重新生成新的vnode，然后patch
+		// 在mount时我们调用了一个effect，effect的回调就是具体的更新逻辑
+		// effect会返回一个runner，执行runner就会重新执行回调
+		// 所以在mount时需要存一下effect的返回值
+		// 这里需要拿到实例
+		// 再在实例上存入下次的vnode
+		const instance = (n2.component = n1.component);
+		// 这里有一个优化点，父组件更新的数据跟子组件没关系，此时其实不应该更新子组件
+		if (shouldUpdateComponent(n1, n2)) {
+			instance.next = n2;
+			instance.update();
+		} else {
+			console.log(`组件不需要更新: ${instance}`);
+			// 不需要更新的话，那么只需要覆盖下面的属性即可
+			n2.component = n1.component;
+			n2.el = n1.el;
+			instance.vnode = n2;
+		}
 	}
 	function mountComponent(initialVnode, container, parentComponent, anchor) {
-		// 创建组件实例
-		const instance = createComponentInstance(initialVnode, parentComponent);
+		// 创建组件实例 并存入vnode中
+		const instance = (initialVnode.component = createComponentInstance(initialVnode, parentComponent));
 		// 继续处理组件实例
 		setupComponent(instance);
 		// 调用render
@@ -66,7 +91,7 @@ export function createRenderer(options: any) {
 		// 更新时用effect包裹
 		// 在跟新后会触发effect回调
 		// 更新其实就是重新生成一个vnode跟之前的vnode做精确对比
-		effect(() => {
+		instance.update = effect(() => {
 			if (!instance.isMounted) {
 				// 获取到render函数返回值
 				const { proxy } = instance;
@@ -80,6 +105,17 @@ export function createRenderer(options: any) {
 				initialVnode.el = subTree.el;
 				instance.isMounted = true;
 			} else {
+				// 响应式的值变更后会从这里执行逻辑
+				// 主要就是拿到新的 vnode ，然后和之前的 vnode 进行对比
+				console.log(`${instance.type.name}:调用更新逻辑`);
+				// 拿到最新的 subTree
+				const { next, vnode } = instance;
+				// 如果有 next 的话， 说明需要更新组件的数据（props，slots 等）
+        // 先更新组件的数据，然后更新完成后，在继续对比当前组件的子元素
+				if(next) {
+					next.el = vnode.el;
+					updateComponentPreRender(instance, next);
+				}
 				const { proxy } = instance;
 				const subTree = instance.render.call(proxy);
 				const prevTree = instance.subTree;
@@ -87,6 +123,24 @@ export function createRenderer(options: any) {
 				patch(prevTree, subTree, container, instance, anchor);
 			}
 		});
+	}
+	function updateComponentPreRender(instance, nextVNode) {
+		// 更新 nextVNode 的组件实例
+		// 现在 instance.vnode 是组件实例更新前的
+		// 所以之前的 props 就是基于 instance.vnode.props 来获取
+		// 接着需要更新 vnode ，方便下一次更新的时候获取到正确的值
+		nextVNode.component = instance;
+		// TODO 后面更新 props 的时候需要对比
+		// const prevProps = instance.vnode.props;
+		instance.vnode = nextVNode;
+		instance.next = null;
+
+		const { props } = nextVNode;
+		console.log("更新组件的 props", props);
+		instance.props = props;
+		console.log("更新组件的 slots");
+    // TODO 更新组件的 slots
+    // 需要重置 vnode
 	}
 	function processElement(n1, n2, container, parentComponent, anchor) {
 		if (!n1) {

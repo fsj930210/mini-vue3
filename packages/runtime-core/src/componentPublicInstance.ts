@@ -3,6 +3,7 @@ import { hasOwn } from '@mini-vue3/shared';
 const publicPropertiesMap = {
 	$el: (instance) => instance.vnode.el,
 	$slots: (instance) => instance.slots,
+	$props: (instance) => instance.props,
 };
 export const publicInstanceProxyHandlers = {
 	get({ _: instance }, key) {
