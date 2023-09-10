@@ -1,5 +1,5 @@
 {
-  "name": "runtime-dom",
+  "name": "@mini-vue3/runtime-dom",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "keywords": [],
   "dependencies": {
-     "@mini-vue3": "workspace:*"
+     "@mini-vue3/runtime-core": "workspace:*"
   },
   "author": "fengshaojian123 <fsj930210@163.com>",
   "license": "MIT",

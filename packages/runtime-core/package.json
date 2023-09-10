@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@mini-vue3": "workspace:*"
+    "@mini-vue3/shared": "workspace:*",
+    "@mini-vue3/reactivity": "workspace:*"
   },
   "keywords": [],
   "author": "fengshaojian123 <fsj930210@163.com>",

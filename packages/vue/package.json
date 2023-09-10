@@ -6,7 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@mini-vue3/runtime-core": "workspace: *",
+    "@mini-vue3/runtime-dom": "workspace: *",
     "@mini-vue3/reactivity": "workspace: *"
   },
   "keywords": [],
