@@ -3,13 +3,18 @@ function createElement(type) {
 	return document.createElement(type);
 }
 
-function patchProps(el, key, val) {
+function patchProps(el, key, prevVal, nextVal) {
 	const isOn = (key) => /^on[A-Z]/.test(key);
 	if (isOn(key)) {
 		const eventName = key.slice(2).toLocaleLowerCase();
-		el.addEventListener(eventName, val);
+		el.addEventListener(eventName, nextVal);
 	} else {
-		el.setAttribute(key, val);
+		// case 2删除或者赋值为undefined
+		if (nextVal === null || nextVal === undefined) {
+			el.removeAttribute(key);
+		} else {
+			el.setAttribute(key, nextVal);
+		}
 	}
 }
 function insert(el, parent) {

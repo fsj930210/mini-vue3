@@ -1,7 +1,7 @@
 export * from './shapeFlags';
 
 export const extend = Object.assign;
-
+export const EMPTY_OBJECT = {};
 export function isObject(value) {
 	return value !== null && typeof value === 'object';
 }

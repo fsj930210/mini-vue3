@@ -1,11 +1,10 @@
-import { shallowReadonly } from 'packages/reactivity/src/reactive';
 import { initProps } from './componentProps';
 import { publicInstanceProxyHandlers } from './componentPublicInstance';
 import { emit } from './componentEmit';
 import { initSlots } from './componentSlots';
+import { proxyRefs, shallowReadonly } from '@mini-vue3/reactivity';
 let currentInstance = null;
 export function createComponentInstance(vnode, parent) {
-	console.log('createComponentInstance: ', vnode, 'parent: ', parent);
 	const component = {
 		vnode,
 		type: vnode.type,
@@ -14,6 +13,8 @@ export function createComponentInstance(vnode, parent) {
 		slots: {},
 		provides: parent ? parent.provides : {},
 		parent,
+		subTree: {},
+		isMounted: false, // 判断是更新还是初始化
 		emit: () => {},
 	};
 	component.emit = emit.bind(null, component) as any;
@@ -53,7 +54,8 @@ function handleSetupResult(instance, setupResult) {
 	// TODO function
 	if (typeof setupResult === 'object') {
 		// 将返回值存入到instance上
-		instance.setupState = setupResult;
+		// 自动解包
+		instance.setupState = proxyRefs(setupResult);
 	}
 	// 保证实例render函数有返回值
 	finishComponentSetup(instance);

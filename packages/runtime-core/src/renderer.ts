@@ -1,50 +1,52 @@
-import { shapeFlags } from '@mini-vue3/shared';
+import { EMPTY_OBJECT, shapeFlags } from '@mini-vue3/shared';
 import { createComponentInstance, setupComponent } from './component';
 import { Fragment, Text } from './vnode';
 import { createAppApi } from './createApp';
+import { effect } from '@mini-vue3/reactivity';
 
 export function createRenderer(options: any) {
-	const { createElement, patchProps, insert } = options;
+	const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert } = options;
 
 	function render(vnode, container) {
 		// 这个方法主要是调用patch方法
-		patch(vnode, container, null);
+		patch(null, vnode, container, null);
 	}
-
-	function patch(vnode, container, parentComponent) {
+	// 考虑到更新操作，需要传入更新前后的vnode，所以参数增加
+	// n1 更新前的vnode， n2更新后的vnode，如果n1等于null则是mount阶段
+	function patch(n1, n2, container, parentComponent) {
 		// 判断是element类型还是component vnode.type object就是组件 string就是element
 		// 通过shapeFlag位运算判断是否是组件还是elment
 
-		const { shapeFlag, type } = vnode;
+		const { shapeFlag, type } = n2;
 
 		switch (type) {
 			case Fragment:
-				processFragement(vnode, container, parentComponent);
+				processFragement(n1, n2, container, parentComponent);
 				break;
 			case Text:
-				processText(vnode, container);
+				processText(n1, n2, container);
 				break;
 			default:
 				if (shapeFlag & shapeFlags.STATEFUL_COMPONENT) {
 					// 处理组件
-					processComponent(vnode, container, parentComponent);
+					processComponent(n1, n2, container, parentComponent);
 				} else if (shapeFlag & shapeFlags.ELEMENT) {
 					// 处理element
-					processElement(vnode, container, parentComponent);
+					processElement(n1, n2, container, parentComponent);
 				}
 				break;
 		}
 	}
-	function processText(vnode, container) {
-		const textNode = (vnode.el = document.createTextNode(vnode.children));
+	function processText(n1, n2, container) {
+		const textNode = (n2.el = document.createTextNode(n2.children));
 		container.appendChild(textNode);
 	}
-	function processFragement(vnode, container, parentComponent) {
-		mountChildren(vnode, container, parentComponent);
+	function processFragement(n1, n2, container, parentComponent) {
+		mountChildren(n2, container, parentComponent);
 	}
-	function processComponent(vnode, container, parentComponent) {
+	function processComponent(n1, n2, container, parentComponent) {
 		// 挂载组件
-		mountComponent(vnode, container, parentComponent);
+		mountComponent(n2, container, parentComponent);
 	}
 	function mountComponent(initialVnode, container, parentComponent) {
 		// 创建组件实例
@@ -55,30 +57,83 @@ export function createRenderer(options: any) {
 		setupRenderEffect(instance, initialVnode, container);
 	}
 	function setupRenderEffect(instance, initialVnode, container) {
-		// 获取到render函数返回值
-		const { proxy } = instance;
-		// 调用render函数绑定this到代理对象上， suntree就是一个vnode
-		// vue2是直接绑定到vue实例上，这里是直接绑定到一个proxy
-		const subTree = instance.render.call(proxy);
-		// vnode -> patch
-		// vnode -> element -> mountElement
-		patch(subTree, container, instance);
-		// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
-		initialVnode.el = subTree.el;
+		// 更新时用effect包裹
+		// 在跟新后会触发effect回调
+		// 更新其实就是重新生成一个vnode跟之前的vnode做精确对比
+		effect(() => {
+			if (!instance.isMounted) {
+				// 获取到render函数返回值
+				const { proxy } = instance;
+				// 调用render函数绑定this到代理对象上， suntree就是一个vnode
+				// vue2是直接绑定到vue实例上，这里是直接绑定到一个proxy
+				const subTree = (instance.subTree = instance.render.call(proxy));
+				// vnode -> patch
+				// vnode -> element -> mountElement
+				patch(null, subTree, container, instance);
+				// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
+				initialVnode.el = subTree.el;
+				instance.isMounted = true;
+			} else {
+				const { proxy } = instance;
+				const subTree = instance.render.call(proxy);
+				const prevTree = instance.subTree;
+				instance.subTree = subTree;
+				patch(prevTree, subTree, container, instance);
+			}
+		});
 	}
-	function processElement(vnode, container, parentComponent) {
-		// mount
-		mountElement(vnode, container, parentComponent);
+	function processElement(n1, n2, container, parentComponent) {
+		if (!n1) {
+			// mount
+			mountElement(n2, container, parentComponent);
+		} else {
+			patchElement(n1, n2, container);
+		}
+	}
+	function patchElement(n1, n2, container) {
+		console.log('patchElement');
+		console.log(n1);
+		console.log(n2);
+		// 更新props
+		const prevProps = n1.props || EMPTY_OBJECT;
+		const nextProps = n2.props || EMPTY_OBJECT;
+		// el从上一次的vnode里面拿
+		// 这里nextProps里面是拿不到el的，所以为了下次更新能
+		// 拿到el需要做一次赋值
+		const el = (n2.el = n1.el);
+		patchProp(el, prevProps, nextProps);
+	}
+	function patchProp(el, prevProps, nextProps) {
+		// 优化 如果两个props相同就不进入逻辑
+		if (prevProps !== nextProps) {
+			for (const key in nextProps) {
+				const prevProp = prevProps[key];
+				const nextProp = nextProps[key];
+				// case1 更新props
+				if (prevProp !== nextProp) {
+					hostPatchProps(el, key, prevProp, nextProp);
+				}
+			}
+			// case 3新props里面没有旧props里面的值
+			// 优化只有不是空的时候才遍历
+			if (prevProps !== EMPTY_OBJECT) {
+				for (const key in prevProps) {
+					if (!nextProps[key]) {
+						hostPatchProps(el, key, prevProps[key], null);
+					}
+				}
+			}
+		}
 	}
 	function mountElement(vnode, container, parentComponent) {
 		// 将el存入vnode中，为后面this.$el好拿到el，但是这里的el是不完整的
 		// 因为这里只是在mount element时才会调用，而在mount component时el没有
-		const el = (vnode.el = createElement(vnode.type));
+		const el = (vnode.el = hostCreateElement(vnode.type));
 		const { props, children, shapeFlag } = vnode;
 		// const isOn = (key) => /^on[A-Z]/.test(key);
 		for (const prop in props) {
 			const val = props[prop];
-			patchProps(el, prop, val);
+			hostPatchProps(el, prop, null, val);
 			// if (isOn(prop)) {
 			// 	const eventName = prop.slice(2).toLocaleLowerCase();
 			// 	el.addEventListener(eventName, val);
@@ -94,11 +149,11 @@ export function createRenderer(options: any) {
 			mountChildren(vnode, el, parentComponent);
 		}
 		// container.appendChild(el);
-		insert(el, container);
+		hostInsert(el, container);
 	}
 	function mountChildren(vnode, container, parentComponent) {
 		vnode.children.forEach((v) => {
-			patch(v, container, parentComponent);
+			patch(null, v, container, parentComponent);
 		});
 	}
 	return {
