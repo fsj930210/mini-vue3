@@ -3,7 +3,8 @@ import { createComponentInstance, setupComponent } from './component';
 import { Fragment, Text } from './vnode';
 import { createAppApi } from './createApp';
 import { effect } from '@mini-vue3/reactivity';
-import { shouldUpdateComponent } from "./componentRenderUtils";
+import { shouldUpdateComponent } from './componentRenderUtils';
+import { queueJobs } from './scheduler';
 
 export function createRenderer(options: any) {
 	const {
@@ -56,7 +57,7 @@ export function createRenderer(options: any) {
 			// 挂载组件
 			mountComponent(n2, container, parentComponent, anchor);
 		} else {
-			updateComponent(n1, n2)
+			updateComponent(n1, n2);
 		}
 	}
 	function updateComponent(n1, n2) {
@@ -91,38 +92,45 @@ export function createRenderer(options: any) {
 		// 更新时用effect包裹
 		// 在跟新后会触发effect回调
 		// 更新其实就是重新生成一个vnode跟之前的vnode做精确对比
-		instance.update = effect(() => {
-			if (!instance.isMounted) {
-				// 获取到render函数返回值
-				const { proxy } = instance;
-				// 调用render函数绑定this到代理对象上， suntree就是一个vnode
-				// vue2是直接绑定到vue实例上，这里是直接绑定到一个proxy
-				const subTree = (instance.subTree = instance.render.call(proxy));
-				// vnode -> patch
-				// vnode -> element -> mountElement
-				patch(null, subTree, container, instance, anchor);
-				// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
-				initialVnode.el = subTree.el;
-				instance.isMounted = true;
-			} else {
-				// 响应式的值变更后会从这里执行逻辑
-				// 主要就是拿到新的 vnode ，然后和之前的 vnode 进行对比
-				console.log(`${instance.type.name}:调用更新逻辑`);
-				// 拿到最新的 subTree
-				const { next, vnode } = instance;
-				// 如果有 next 的话， 说明需要更新组件的数据（props，slots 等）
-        // 先更新组件的数据，然后更新完成后，在继续对比当前组件的子元素
-				if(next) {
-					next.el = vnode.el;
-					updateComponentPreRender(instance, next);
+		instance.update = effect(
+			() => {
+				if (!instance.isMounted) {
+					// 获取到render函数返回值
+					const { proxy } = instance;
+					// 调用render函数绑定this到代理对象上， suntree就是一个vnode
+					// vue2是直接绑定到vue实例上，这里是直接绑定到一个proxy
+					const subTree = (instance.subTree = instance.render.call(proxy));
+					// vnode -> patch
+					// vnode -> element -> mountElement
+					patch(null, subTree, container, instance, anchor);
+					// 这里其实才是执行完一次的结果，这里subtree.el一定有值，因为他执行完了一次完整mount
+					initialVnode.el = subTree.el;
+					instance.isMounted = true;
+				} else {
+					// 响应式的值变更后会从这里执行逻辑
+					// 主要就是拿到新的 vnode ，然后和之前的 vnode 进行对比
+					console.log(`${instance.type.name}:调用更新逻辑`);
+					// 拿到最新的 subTree
+					const { next, vnode } = instance;
+					// 如果有 next 的话， 说明需要更新组件的数据（props，slots 等）
+					// 先更新组件的数据，然后更新完成后，在继续对比当前组件的子元素
+					if (next) {
+						next.el = vnode.el;
+						updateComponentPreRender(instance, next);
+					}
+					const { proxy } = instance;
+					const subTree = instance.render.call(proxy);
+					const prevTree = instance.subTree;
+					instance.subTree = subTree;
+					patch(prevTree, subTree, container, instance, anchor);
 				}
-				const { proxy } = instance;
-				const subTree = instance.render.call(proxy);
-				const prevTree = instance.subTree;
-				instance.subTree = subTree;
-				patch(prevTree, subTree, container, instance, anchor);
+			},
+			{
+				scheduler() {
+					queueJobs(instance.update);
+				},
 			}
-		});
+		);
 	}
 	function updateComponentPreRender(instance, nextVNode) {
 		// 更新 nextVNode 的组件实例
@@ -136,11 +144,11 @@ export function createRenderer(options: any) {
 		instance.next = null;
 
 		const { props } = nextVNode;
-		console.log("更新组件的 props", props);
+		console.log('更新组件的 props', props);
 		instance.props = props;
-		console.log("更新组件的 slots");
-    // TODO 更新组件的 slots
-    // 需要重置 vnode
+		console.log('更新组件的 slots');
+		// TODO 更新组件的 slots
+		// 需要重置 vnode
 	}
 	function processElement(n1, n2, container, parentComponent, anchor) {
 		if (!n1) {
@@ -265,7 +273,7 @@ export function createRenderer(options: any) {
 				// 0代表还没有建立映射关系
 				newIndexToOldIndexMap[i] = 0;
 			}
-			
+
 			for (let i = s2; i <= e2; i++) {
 				const nextChild = c2[i];
 				newIndexMap.set(nextChild.key, i);
@@ -304,9 +312,9 @@ export function createRenderer(options: any) {
 					hostRemove(prevChild.el);
 				} else {
 					// 来确定中间的节点是不是需要移动
-          // 新的 newIndex 如果一直是升序的话，那么就说明没有移动
-          // 所以我们可以记录最后一个节点在新的里面的索引，然后看看是不是升序
-          // 不是升序的话，我们就可以确定节点移动过了
+					// 新的 newIndex 如果一直是升序的话，那么就说明没有移动
+					// 所以我们可以记录最后一个节点在新的里面的索引，然后看看是不是升序
+					// 不是升序的话，我们就可以确定节点移动过了
 					if (newIndex >= maxNewIndexSoFar) {
 						maxNewIndexSoFar = newIndex;
 					} else {
@@ -324,13 +332,13 @@ export function createRenderer(options: any) {
 				}
 			}
 			// 利用最长递增子序列来优化移动逻辑
-      // 因为元素是升序的话，那么这些元素就是不需要移动的
-      // 而我们就可以通过最长递增子序列来获取到升序的列表
-      // 在移动的时候我们去对比这个列表，如果对比上的话，就说明当前元素不需要移动
-      // 通过 moved 来进行优化，如果没有移动过的话 那么就不需要执行算法
-      // getSequence 返回的是 newIndexToOldIndexMap 的索引值
-      // 所以后面我们可以直接遍历索引值来处理，也就是直接使用 toBePatched 即可
-			const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : []
+			// 因为元素是升序的话，那么这些元素就是不需要移动的
+			// 而我们就可以通过最长递增子序列来获取到升序的列表
+			// 在移动的时候我们去对比这个列表，如果对比上的话，就说明当前元素不需要移动
+			// 通过 moved 来进行优化，如果没有移动过的话 那么就不需要执行算法
+			// getSequence 返回的是 newIndexToOldIndexMap 的索引值
+			// 所以后面我们可以直接遍历索引值来处理，也就是直接使用 toBePatched 即可
+			const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : [];
 			// 最长递增子序列的索引
 			// let j = 0;
 			let j = increasingNewIndexSequence.length - 1;
@@ -355,7 +363,7 @@ export function createRenderer(options: any) {
 				const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : null;
 				// 代表老节点没有新节点有新增
 				if (newIndexToOldIndexMap[i] === 0) {
-					patch(null, nextChild, container, parentComponent, anchor)
+					patch(null, nextChild, container, parentComponent, anchor);
 				} else if (moved) {
 					// 新节点对比老节点移动过菜执行下面的逻辑
 					// j < 0 则没有递增子序列 需要移动
@@ -364,7 +372,7 @@ export function createRenderer(options: any) {
 						console.log('移动位置');
 						hostInsert(nextChild.el, container, anchor);
 					} else {
-						j--
+						j--;
 					}
 				}
 			}

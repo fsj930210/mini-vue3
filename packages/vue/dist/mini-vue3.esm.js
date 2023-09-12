@@ -471,6 +471,32 @@ function hasPropsChanged(prevProps, nextProps) {
     return false;
 }
 
+const queue = [];
+const p = Promise.resolve();
+let isFlushPending = false;
+function nextTick(fn) {
+    return fn ? p.then(fn) : p;
+}
+function queueJobs(job) {
+    if (!queue.includes(job)) {
+        queue.push(job);
+        queueFlush();
+    }
+}
+function queueFlush() {
+    if (isFlushPending)
+        return;
+    isFlushPending = true;
+    nextTick(flushJobs);
+}
+function flushJobs() {
+    isFlushPending = false;
+    let job;
+    while ((job = queue.shift())) {
+        job === null || job === void 0 ? void 0 : job();
+    }
+}
+
 function createRenderer(options) {
     const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container) {
@@ -550,6 +576,10 @@ function createRenderer(options) {
                 instance.subTree = subTree;
                 patch(prevTree, subTree, container, instance, anchor);
             }
+        }, {
+            scheduler() {
+                queueJobs(instance.update);
+            },
         });
     }
     function updateComponentPreRender(instance, nextVNode) {
@@ -557,9 +587,9 @@ function createRenderer(options) {
         instance.vnode = nextVNode;
         instance.next = null;
         const { props } = nextVNode;
-        console.log("更新组件的 props", props);
+        console.log('更新组件的 props', props);
         instance.props = props;
-        console.log("更新组件的 slots");
+        console.log('更新组件的 slots');
     }
     function processElement(n1, n2, container, parentComponent, anchor) {
         if (!n1) {
