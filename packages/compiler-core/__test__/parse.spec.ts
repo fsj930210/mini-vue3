@@ -58,24 +58,24 @@ describe('parser', () => {
 		});
 	});
 
-	// describe('Element', () => {
-	// 	test('simple div', () => {
-	// 		const ast = baseParse('<div>hello</div>');
-	// 		const element = ast.children[0];
+	describe('Element', () => {
+		test('simple div', () => {
+			const ast = baseParse('<div></div>');
+			const element = ast.children[0];
 
-	// 		expect(element).toStrictEqual({
-	// 			type: NodeTypes.ELEMENT,
-	// 			tag: 'div',
-	// 			tagType: ElementTypes.ELEMENT,
-	// 			children: [
-	// 				{
-	// 					type: NodeTypes.TEXT,
-	// 					content: 'hello',
-	// 				},
-	// 			],
-	// 		});
-	// 	});
-
+			expect(element).toStrictEqual({
+				type: NodeTypes.ELEMENT,
+				tag: 'div',
+				// tagType: ElementTypes.ELEMENT,
+				// children: [
+				// 	{
+				// 		type: NodeTypes.TEXT,
+				// 		content: 'hello',
+				// 	},
+				// ],
+			});
+		});
+	});
 	// 	test('element with interpolation', () => {
 	// 		const ast = baseParse('<div>{{ msg }}</div>');
 	// 		const element = ast.children[0];
